@@ -1,0 +1,15 @@
+{
+  "name": "missmeta-backend",
+  "version": "1.0.0",
+  "description": "MissMeta is a general public Vo2ng social media pla5orm that primarily focuses on visual content.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "missmeta",
+    "backend"
+  ],
+  "author": "Umair Amjad",
+  "license": "ISC"
+}
