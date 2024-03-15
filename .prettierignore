@@ -1,0 +1,42 @@
+# Ignore all files and directories in node_modules
+node_modules/
+
+# Ignore logs and other generated files
+logs/
+dist/
+build/
+coverage/
+
+# Ignore configuration files
+*.config.js
+*.env
+
+# Ignore binary files
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.ico
+*.woff
+*.woff2
+*.eot
+*.ttf
+*.otf
+*.pdf
+*.mp4
+*.mov
+*.avi
+
+# Ignore compressed files
+*.zip
+*.rar
+*.gz
+*.7z
+
+# Ignore package-lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Ignore .git directory
+.git/
