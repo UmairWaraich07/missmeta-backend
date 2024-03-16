@@ -28,4 +28,12 @@ app.use(cookieParser());
 
 app.use(express.static("public"));
 
+// import routes
+import userRouter from "./routes/user.route.js";
+import verificationRouter from "./routes/verification.route.js";
+
+// Routes declaration
+app.use("/api/v1/users", userRouter);
+app.use("/api/v1/verification", verificationRouter);
+
 export { app };
