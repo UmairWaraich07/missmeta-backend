@@ -221,14 +221,37 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 
   return res.status(200).json(new ApiResponse(200, true, "Password changed successfully"));
 });
+const upgradeToContestant = asyncHandler(async (req, res) => {
+  const { height, weight, eyeColor, hairColor } = req.body;
 
-const updateProfilePhoto = asyncHandler(async (req, res) => {});
+  if ([height, weight, eyeColor, hairColor].some((field) => field?.trim() === "")) {
+    throw new ApiError(400, "All fields are required");
+  }
 
-const updateProfileDetails = asyncHandler(async (req, res) => {});
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        height,
+        weight,
+        eyeColor,
+        hairColor,
+        role: "contestant",
+      },
+    },
+    {
+      new: true,
+    }
+  );
 
-const upgradeToContestant = asyncHandler(async (req, res) => {});
+  if (!user) {
+    throw new ApiError(500, "Failed to updated user details for contestant");
+  }
 
-const getUserLikedPosts = asyncHandler(async (req, res) => {});
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "User upgraded to contestant successfully"));
+});
 
 export {
   registerUser,
@@ -237,4 +260,5 @@ export {
   getCurrentUser,
   logoutUser,
   changeCurrentPassword,
+  upgradeToContestant,
 };
