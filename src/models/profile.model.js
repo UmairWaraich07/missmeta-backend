@@ -8,7 +8,13 @@ const profileSchema = new mongoose.Schema(
       required: true,
     },
     profilePhoto: {
-      type: String,
+      url: {
+        type: String,
+      },
+
+      public_id: {
+        type: String,
+      },
     },
     bio: String,
     website: String,
@@ -18,12 +24,20 @@ const profileSchema = new mongoose.Schema(
         ref: "Post",
       },
     ],
-    socialMediaHandles: {
-      instagram: String,
-      facebook: String,
-      tiktok: String,
-      youtube: String,
-      spotify: String,
+    instagramLink: {
+      type: String,
+    },
+    facebookLink: {
+      type: String,
+    },
+    tiktokLink: {
+      type: String,
+    },
+    youtubeLink: {
+      type: String,
+    },
+    spotifyLink: {
+      type: String,
     },
     primaryAdvertisement: {
       type: [String],
