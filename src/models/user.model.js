@@ -13,10 +13,12 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
     },
     password: { type: String, required: true },
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
+    fullname: {
+      type: String,
+      required: true,
+    },
     email: { type: String, required: true, unique: true },
-    phone: { type: String, required: true },
+    phone: { type: String },
 
     phoneVerified: { type: Boolean, default: false }, // Added for phone number verification
     dateOfBirth: { type: Date, required: true },
@@ -75,7 +77,7 @@ userSchema.methods.isPasswordCorrect = async function (password) {
 };
 
 userSchema.methods.generateAccessToken = async function () {
-  return jwt.sign(
+  return await jwt.sign(
     {
       _id: this._id,
       username: this.username,
@@ -89,7 +91,7 @@ userSchema.methods.generateAccessToken = async function () {
 };
 
 userSchema.methods.generateRefreshToken = async function () {
-  return jwt.sign(
+  return await jwt.sign(
     {
       _id: this._id,
     },

@@ -3,8 +3,13 @@ import mongoose from "mongoose";
 const profileSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    displayName: String,
-    profilePhoto: String,
+    displayName: {
+      type: String,
+      required: true,
+    },
+    profilePhoto: {
+      type: String,
+    },
     bio: String,
     website: String,
     highlights: [
@@ -19,6 +24,14 @@ const profileSchema = new mongoose.Schema(
       tiktok: String,
       youtube: String,
       spotify: String,
+    },
+    primaryAdvertisement: {
+      type: [String],
+      maxLength: 3,
+    },
+    secondaryAdvertisement: {
+      type: [String],
+      maxLength: 3,
     },
   },
   {
