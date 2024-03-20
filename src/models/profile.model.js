@@ -1,5 +1,20 @@
 import mongoose from "mongoose";
 
+const highlightsSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+  },
+  cover: {
+    type: String,
+    required: true,
+  },
+  media: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Post",
+  },
+});
+
 const profileSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -18,12 +33,7 @@ const profileSchema = new mongoose.Schema(
     },
     bio: String,
     website: String,
-    highlights: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Post",
-      },
-    ],
+    highlights: [highlightsSchema],
     instagramLink: {
       type: String,
     },

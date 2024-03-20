@@ -23,9 +23,9 @@ const userSchema = new mongoose.Schema(
     phoneVerified: { type: Boolean, default: false }, // Added for phone number verification
     dateOfBirth: { type: Date, required: true },
     nationality: { type: String },
-    country: { type: String, required: true, index: true },
-    state: { type: String, required: true, index: true },
-    city: { type: String, required: true, index: true },
+    country: { type: String, required: true },
+    state: { type: String, required: true },
+    city: { type: String, required: true },
     role: { type: String, enum: ["voter", "contestant"], index: true, required: true },
     height: {
       type: Number,
@@ -41,18 +41,21 @@ const userSchema = new mongoose.Schema(
     },
     eyeColor: {
       type: String,
+      index: true,
       required: function () {
         return this.role === "contestant";
       },
     },
     hairColor: {
       type: String,
+      index: true,
       required: function () {
         return this.role === "contestant";
       },
     },
     status: {
       type: String,
+      index: true,
       enum: ["active", "suspended"],
       default: "active",
     },
@@ -65,6 +68,8 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+userSchema.index({ country: 1, state: 1 });
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();

@@ -3,6 +3,7 @@ import { validatePassword } from "../utils/passwordValidation.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
+import { Subscription } from "../models/subscription.model.js";
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -42,46 +43,38 @@ const registerUser = asyncHandler(async (req, res) => {
     role,
   } = req.body;
 
-  if (
-    [fullname, username, email, password, dateOfBirth, country, state, city, role].some(
-      (field) => field?.trim() === ""
-    )
-  ) {
+  const requiredFields = [
+    fullname,
+    username,
+    email,
+    password,
+    dateOfBirth,
+    country,
+    state,
+    city,
+    role,
+  ];
+  if (requiredFields.some((field) => !field || field.trim() === "")) {
     throw new ApiError(400, "All fields are required");
   }
 
-  const isPasswordValid = validatePassword(password);
-  // console.log(isPasswordValid);
-
-  if (!isPasswordValid) {
+  if (!validatePassword(password)) {
     throw new ApiError(
       400,
       "Password must be at least 8 characters long with one lowercase letter and one special character"
     );
   }
 
-  if (role === "contestant") {
-    if (!eyeColor || !hairColor) {
-      throw new ApiError(400, "EyeColor and HairColor are required for contestants");
-    }
-
-    if (!height || !weight) {
-      throw new ApiError(400, "Height and Weight are required for contestants");
-    }
+  if (role === "contestant" && (!eyeColor || !hairColor || !height || !weight)) {
+    throw new ApiError(400, "EyeColor, HairColor, Height, and Weight are required for contestants");
   }
 
-  const existedUser = await User.findOne({
-    $or: [{ email }, { username }],
-  });
-
+  const existedUser = await User.findOne({ $or: [{ email }, { username }] });
   if (existedUser) {
     throw new ApiError(409, "User with this email or username already exists!");
   }
 
-  const createdUser = await User.create({
-    ...req.body,
-    role,
-  });
+  const createdUser = await User.create({ ...req.body, role });
 
   const user = await User.findById(createdUser._id).select("-refreshToken -password");
   console.log(user);
@@ -111,21 +104,21 @@ const loginUser = asyncHandler(async (req, res) => {
 
   if (!isPasswordValid) throw new ApiError(403, "Wrong Password!");
 
-  // if (!(user.phone && user.phoneVerified)) {
-  //   res.redirect("http://localhost:5173/verify");
-  // }
   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
-
-  const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
 
   //set the cookies in the client'
   const options = {
     httpOnly: true,
-    secure: false,
+    secure: true,
   };
 
   res.cookie("accessToken", accessToken, options);
   res.cookie("refreshToken", refreshToken, options);
+
+  // Return logged-in user details without sensitive data
+  const loggedInUser = user.toObject();
+  delete loggedInUser.password;
+  delete loggedInUser.refreshToken;
 
   return res.status(200).json(
     new ApiResponse(
@@ -177,6 +170,12 @@ const updatePhoneVerification = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Phone number is required for updation of  phone verification status");
   }
 
+  // Check if the phone number already exists in the database
+  const existingUserWithPhone = await User.findOne({ phone: phone });
+  if (existingUserWithPhone && existingUserWithPhone._id.toString() !== req.user?._id.toString()) {
+    throw new ApiError(400, "Phone number is already in use");
+  }
+
   const updatedUser = await User.findByIdAndUpdate(
     req.user?._id,
     {
@@ -215,17 +214,31 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
   }
 
   user.password = newPassword;
-  await user.save({
-    validateBeforeSave: false,
-  });
+  try {
+    await user.save({ validateBeforeSave: false });
+  } catch (error) {
+    // Handle save operation errors
+    throw new ApiError(500, "Failed to change password");
+  }
 
   return res.status(200).json(new ApiResponse(200, true, "Password changed successfully"));
 });
+
 const upgradeToContestant = asyncHandler(async (req, res) => {
   const { height, weight, eyeColor, hairColor } = req.body;
 
   if ([height, weight, eyeColor, hairColor].some((field) => field?.trim() === "")) {
     throw new ApiError(400, "All fields are required");
+  }
+
+  // Check if the user has an active subscription
+  const activeSubscription = await Subscription.findOne({
+    userId: req.user?._id,
+    stripeCurrentPeriodEnd: { $gt: new Date() }, // Check if current period end date is in the future
+  });
+
+  if (!activeSubscription) {
+    throw new ApiError(403, "User does not have an active subscription");
   }
 
   const user = await User.findByIdAndUpdate(
