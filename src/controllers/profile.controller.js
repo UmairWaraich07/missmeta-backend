@@ -4,6 +4,7 @@ import { deleteImageFromCloudinary, uploadOnCloudinary } from "../utils/cloudina
 import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
 import { User } from "../models/user.model";
+import mongoose from "mongoose";
 
 const updateProfilePhoto = asyncHandler(async (req, res) => {
   const uploadedPhotoPublicId = req.user?.profilePhoto.public_id;
@@ -100,7 +101,7 @@ const getUserProfileInfo = asyncHandler(async (req, res) => {
   const profile = await Profile.aggregate([
     {
       $match: {
-        _id: user._id,
+        _id: new mongoose.Schema.ObjectId(user._id),
       },
     },
 
@@ -140,6 +141,9 @@ const getUserProfileInfo = asyncHandler(async (req, res) => {
         },
         followingCount: {
           $size: "$following",
+        },
+        votesCount: {
+          $size: "$voters",
         },
         isFollowing: {
           cond: {

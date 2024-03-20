@@ -58,6 +58,7 @@ const userSchema = new mongoose.Schema(
       index: true,
       enum: ["active", "suspended"],
       default: "active",
+      index: true,
     },
 
     refreshToken: {

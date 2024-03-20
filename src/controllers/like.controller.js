@@ -7,7 +7,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 const togglePostLike = asyncHandler(async (req, res) => {
   const { postId } = req.params;
 
-  // Validate videoId
+  // Validate postId
   if (!postId || !isValidObjectId(postId)) {
     throw new ApiError(400, "Invalid Video ID");
   }

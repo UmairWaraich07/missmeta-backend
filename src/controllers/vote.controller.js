@@ -15,6 +15,16 @@ const toggleContestantVote = asyncHandler(async (req, res) => {
     throw new ApiError(400, "User cannot vote to their own profile");
   }
 
+  if (req.user?.role === "contestant") {
+    throw new ApiError(400, "Contestant can't vote contestants");
+  }
+
+  const contestant = await Vote.findById(contestantId);
+
+  if (contestant?.role !== "contestant") {
+    throw new ApiError(400, "Contestant Id does not belong to contestant");
+  }
+
   const existingVote = await Vote.findOneAndDelete({
     contestant: contestantId,
     voter: req.user?._id,
@@ -69,7 +79,7 @@ const getContestantVotersList = asyncHandler(async (req, res) => {
     match,
     {
       $lookup: {
-        from: "users",
+        from: "profiles",
         foreignField: "_id",
         localField: "voter",
         as: "voter",
@@ -95,7 +105,7 @@ const getContestantVotersList = asyncHandler(async (req, res) => {
       console.log(results);
       return res
         .status(200)
-        .json(new ApiResponse(200, results[0], "contestant voters fetched successfully"));
+        .json(new ApiResponse(200, results, "contestant voters fetched successfully"));
     })
     .catch(function (err) {
       throw new ApiError(500, err?.message || "Failed to get user contestant voters list");

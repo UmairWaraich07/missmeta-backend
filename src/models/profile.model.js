@@ -19,6 +19,14 @@ const highlightsSchema = new mongoose.Schema({
 const profileSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+      trim: true,
+      lowercase: true,
+    },
     displayName: {
       type: String,
       required: true,
@@ -57,6 +65,13 @@ const profileSchema = new mongoose.Schema(
     secondaryAdvertisement: {
       type: [String],
       maxLength: 3,
+    },
+    status: {
+      type: String,
+      index: true,
+      enum: ["active", "suspended"],
+      default: "active",
+      index: true,
     },
   },
   {
