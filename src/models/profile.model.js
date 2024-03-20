@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 const highlightsSchema = new mongoose.Schema({
   title: {
@@ -62,5 +63,7 @@ const profileSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+profileSchema.plugin(aggregatePaginate);
 
 export const Profile = mongoose.model("Profile", profileSchema);
