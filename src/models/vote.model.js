@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 const voteSchema = new mongoose.Schema(
   {
@@ -9,5 +10,7 @@ const voteSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+voteSchema.plugin(mongooseAggregatePaginate);
 
 export const Vote = mongoose.model("Vote", voteSchema);
