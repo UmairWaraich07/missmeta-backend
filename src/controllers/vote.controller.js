@@ -38,7 +38,7 @@ const toggleContestantVote = asyncHandler(async (req, res) => {
 });
 
 const getContestantVotersList = asyncHandler(async (req, res) => {
-  const { page, limit, query } = req.query;
+  const { page = 1, limit = 10, query } = req.query;
   const { contestantId } = req.params;
 
   if (!contestantId || !isValidObjectId(contestantId)) {
