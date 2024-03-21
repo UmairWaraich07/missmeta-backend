@@ -301,6 +301,79 @@ const deleteProfileHighlight = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, true, "Profile highlight deleted successfully"));
 });
 
+const getAllContestantsProfile = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 21 } = req.query;
+
+  const options = {
+    page: parseInt(page),
+    limit: parseInt(limit),
+  };
+
+  const aggregationPipeline = Profile.aggregate([
+    // Shuffle the data randomly
+    { $sample: { size: options.limit * options.page } },
+    {
+      $lookup: {
+        from: "users",
+        foreignField: "_id",
+        localField: "user",
+        as: "user",
+      },
+    },
+    {
+      $addFields: {
+        user: {
+          $first: "$user",
+        },
+      },
+    },
+    {
+      $match: {
+        "$user.role": "contestant",
+      },
+    },
+    {
+      $lookup: {
+        from: "votes",
+        foreignField: "contestant",
+        localField: "_id",
+        as: "voters",
+      },
+    },
+    {
+      $addFields: {
+        votesCount: {
+          $size: "$voters",
+        },
+        isVoted: {
+          cond: {
+            if: { $in: [req.user?._id, "$voters.voter"] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        voters: 0,
+        user: 0,
+      },
+    },
+  ]);
+
+  Profile.aggregatePaginate(aggregationPipeline, options)
+    .then((results) => {
+      console.log(results);
+      return res
+        .status(200)
+        .json(new ApiResponse(200, results, "All contestants fetched successfully"));
+    })
+    .catch((err) => {
+      throw new ApiError(500, err?.message || "Failed to fetch all contestants");
+    });
+});
+
 export {
   updateProfileDetails,
   updateProfilePhoto,
@@ -308,4 +381,5 @@ export {
   createProfileHighlight,
   editProfileHighlight,
   deleteProfileHighlight,
+  getAllContestantsProfile,
 };
