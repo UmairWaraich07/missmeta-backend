@@ -3,21 +3,6 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
-const highlightsSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: true,
-  },
-  cover: {
-    type: String,
-    required: true,
-  },
-  media: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Post",
-  },
-});
-
 const userSchema = new mongoose.Schema(
   {
     username: {
@@ -81,7 +66,6 @@ const userSchema = new mongoose.Schema(
     },
     bio: String,
     website: String,
-    highlights: [highlightsSchema],
     instagramLink: {
       type: String,
     },

@@ -14,6 +14,11 @@ import {
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
+import {
+  createProfileHighlight,
+  deleteProfileHighlight,
+  editProfileHighlight,
+} from "../controllers/highlight.controller.js";
 
 const router = Router();
 
