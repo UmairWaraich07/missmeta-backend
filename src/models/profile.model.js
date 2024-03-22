@@ -59,18 +59,16 @@ const profileSchema = new mongoose.Schema(
       type: String,
     },
     primaryAdvertisement: {
-      type: [String],
-      maxLength: 3,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Advertisement",
     },
     secondaryAdvertisement: {
-      type: [String],
-      maxLength: 3,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Advertisement",
     },
-    status: {
-      type: String,
-      index: true,
-      enum: ["active", "suspended"],
-      default: "active",
+    isActive: {
+      type: Boolean,
+      default: true,
       index: true,
     },
   },

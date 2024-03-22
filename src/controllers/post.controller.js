@@ -1,4 +1,4 @@
-import { uploadOnCloudinary } from "../utils/cloudinary";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Post } from "../models/post.model.js";
 import { User } from "../models/user.model.js";
@@ -7,36 +7,48 @@ import { Saved } from "../models/saved.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import mongoose, { isValidObjectId } from "mongoose";
+import pLimit from "p-limit";
 
 /** Associated with contestant */
 const createPost = asyncHandler(async (req, res) => {
   const { caption, location } = req.body;
-  console.log(req.files);
 
   // make sure the status of the user before creating post
   const user = await User.findById(req.user?._id);
-  if (!user?.role === "contestant") {
+  if (user?.role !== "contestant") {
     throw new ApiError(400, "Only contestants are allowed to upload posts");
   }
 
-  const mediaArray = req.files?.media; // an array of media files received from multer
-  const mediaLocalPathArray = mediaArray.map((media) => media[0]?.path);
+  //   extract the local paths from ad images array received from multer
+  const imagesLocalPath = req?.files.map((image) => image.path);
 
-  let urlArray;
-  mediaLocalPathArray.forEach(async (path) => {
-    let response = await uploadOnCloudinary(mediaLocalPathArray);
-    urlArray.push(response?.url);
+  //   upload the images to the cloudinary concurrently using plimit
+  const limit = pLimit(3);
+  const imagesToUpload = imagesLocalPath.map((imageLocalPath) => {
+    return limit(async () => {
+      const response = await uploadOnCloudinary(imageLocalPath);
+      return response;
+    });
   });
 
-  if (!response) {
-    throw new ApiError(500, "Failed to upload the files on cloudinary");
+  const uploads = await Promise.all(imagesToUpload);
+  if (!uploads.every((upload) => upload?.url)) {
+    throw new ApiError(500, "Failed to upload one or more ad images to Cloudinary");
   }
+
+  //   create the post
+  const postImages = uploads.map((upload) => ({
+    url: upload.url,
+    public_id: upload.public_id,
+    type: upload.resource_type,
+  }));
 
   const post = await Post.create({
     owner: req.user?._id,
     caption,
     location,
-    media: urlArray,
+    media: postImages,
+    type: uploads[0]?.resource_type,
   });
 
   if (!post) {
@@ -52,7 +64,7 @@ const editPost = asyncHandler(async (req, res) => {
 
   // Validate postId
   if (!postId || !isValidObjectId(postId)) {
-    throw new ApiError(400, "Invalid Video ID");
+    throw new ApiError(400, "Invalid post ID");
   }
 
   const editedPost = await Post.findByIdAndUpdate(
@@ -110,33 +122,42 @@ const getPostById = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid Video ID");
   }
 
-  const userFollowingList = await Follow.find({
-    follower: req.user?._id,
-  }).select("profile");
-  console.log({ userFollowingList });
+  // get the following list of logged in user
+  const userFollowingList = (
+    await Follow.find({
+      follower: req.user?._id,
+    }).select("profile")
+  ).map((user) => user.profile);
 
   const post = await Post.aggregate([
     {
       $match: {
-        _id: new mongoose.Schema.Types(postId),
+        _id: new mongoose.Types.ObjectId(postId),
+        status: "pending",
       },
     },
     {
       $lookup: {
-        from: "profiles",
-        foreignField: "user",
+        from: "users",
+        foreignField: "_id",
         localField: "owner",
         as: "owner",
         pipeline: [
           {
             $project: {
-              _id: 1,
-              displayName: 1,
+              fullname: 1,
               username: 1,
               profilePhoto: 1,
             },
           },
         ],
+      },
+    },
+    {
+      $addFields: {
+        owner: {
+          $arrayElemAt: ["$owner", 0], // Extract the first element from the owner array
+        },
       },
     },
     {
@@ -150,36 +171,33 @@ const getPostById = asyncHandler(async (req, res) => {
     {
       $lookup: {
         from: "saveds",
-        foreignField: "user",
-        localField: "owner",
-        as: "userSaveds",
+        foreignField: "post",
+        localField: "_id",
+        as: "postSaveds",
       },
     },
     {
       $addFields: {
-        owner: {
-          $first: "$owner",
-        },
         likesCount: {
           $size: "$likes",
         },
         isSaved: {
-          cond: {
-            if: { $in: [req.user?._id, "$userSaveds.user"] },
+          $cond: {
+            if: { $in: [req.user?._id, "$postSaveds.user"] },
             then: true,
             else: false,
           },
         },
         isLiked: {
-          cond: {
+          $cond: {
             if: { $in: [req.user?._id, "$likes.likedBy"] },
             then: true,
             else: false,
           },
         },
         isFollowing: {
-          cond: {
-            if: { $in: [req.user?._id, userFollowingList] },
+          $cond: {
+            if: { $in: ["$owner._id", userFollowingList] },
             then: true,
             else: false,
           },
@@ -189,7 +207,7 @@ const getPostById = asyncHandler(async (req, res) => {
     {
       $project: {
         likes: 0,
-        userSaveds: 0,
+        postSaveds: 0,
       },
     },
   ]);
@@ -205,13 +223,16 @@ const getUserFeedPosts = asyncHandler(async (req, res) => {
   const userId = req.user?._id;
   const { page = 1, limit = 10 } = req.query;
 
-  const userFollowingList = await Follow.find({
-    follower: userId,
-  }).select("profile");
+  // get the following list of logged in user
+  const userFollowingList = (
+    await Follow.find({
+      follower: req.user?._id,
+    }).select("profile")
+  ).map((user) => user.profile);
 
   const options = {
-    page,
-    limit,
+    page: parseInt(page),
+    limit: parseInt(limit),
   };
 
   const aggregationPipeline = Post.aggregate([
@@ -220,6 +241,7 @@ const getUserFeedPosts = asyncHandler(async (req, res) => {
         owner: {
           $in: userFollowingList,
         },
+        status: "pending",
       },
     },
     {
@@ -229,20 +251,26 @@ const getUserFeedPosts = asyncHandler(async (req, res) => {
     },
     {
       $lookup: {
-        from: "profiles",
-        foreignField: "user",
+        from: "users",
+        foreignField: "_id",
         localField: "owner",
         as: "owner",
         pipeline: [
           {
             $project: {
-              _id: 1,
-              displayName: 1,
+              fullname: 1,
               username: 1,
               profilePhoto: 1,
             },
           },
         ],
+      },
+    },
+    {
+      $addFields: {
+        owner: {
+          $arrayElemAt: ["$owner", 0], // Extract the first element from the owner array
+        },
       },
     },
     {
@@ -256,29 +284,33 @@ const getUserFeedPosts = asyncHandler(async (req, res) => {
     {
       $lookup: {
         from: "saveds",
-        foreignField: "user",
-        localField: "owner",
-        as: "userSaveds",
+        foreignField: "post",
+        localField: "_id",
+        as: "postSaveds",
       },
     },
     {
       $addFields: {
-        owner: {
-          $first: "$owner",
-        },
         likesCount: {
           $size: "$likes",
         },
         isSaved: {
-          cond: {
-            if: { $in: [req.user?._id, "$userSaveds.user"] },
+          $cond: {
+            if: { $in: [userId, "$postSaveds.user"] },
             then: true,
             else: false,
           },
         },
         isLiked: {
-          cond: {
-            if: { $in: [req.user?._id, "$likes.likedBy"] },
+          $cond: {
+            if: { $in: [userId, "$likes.likedBy"] },
+            then: true,
+            else: false,
+          },
+        },
+        isFollowing: {
+          $cond: {
+            if: { $in: ["$owner._id", userFollowingList] },
             then: true,
             else: false,
           },
@@ -288,14 +320,13 @@ const getUserFeedPosts = asyncHandler(async (req, res) => {
     {
       $project: {
         likes: 0,
-        userSaveds: 0,
+        postSaveds: 0,
       },
     },
   ]);
 
   Post.aggregatePaginate(aggregationPipeline, options)
     .then((results) => {
-      console.log(results);
       return res
         .status(200)
         .json(new ApiResponse(200, results, "User feed posts fetched successfully"));
@@ -316,21 +347,25 @@ const getGuestFeedPosts = asyncHandler(async (req, res) => {
 
   const aggregationPipeline = Post.aggregate([
     {
+      $match: {
+        status: "pending",
+      },
+    },
+    {
       $sort: {
         createdAt: -1,
       },
     },
     {
       $lookup: {
-        from: "profiles",
-        foreignField: "user",
+        from: "users",
+        foreignField: "_id",
         localField: "owner",
         as: "owner",
         pipeline: [
           {
-            $populate: {
-              _id: 1,
-              displayName: 1,
+            $project: {
+              fullname: 1,
               username: 1,
               profilePhoto: 1,
             },
@@ -351,6 +386,9 @@ const getGuestFeedPosts = asyncHandler(async (req, res) => {
         likesCount: {
           $size: "$likes",
         },
+        owner: {
+          $first: "$owner",
+        },
       },
     },
     {
@@ -362,7 +400,6 @@ const getGuestFeedPosts = asyncHandler(async (req, res) => {
 
   Post.aggregatePaginate(aggregationPipeline, options)
     .then((results) => {
-      console.log(results);
       return res
         .status(200)
         .json(new ApiResponse(200, results, "Guest feed posts fetched successfully"));

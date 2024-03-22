@@ -1,15 +1,16 @@
-import mongoose, { Mongoose, isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Like } from "../models/like.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { Follow } from "../models/follow.model.js";
 
 const togglePostLike = asyncHandler(async (req, res) => {
   const { postId } = req.params;
 
   // Validate postId
   if (!postId || !isValidObjectId(postId)) {
-    throw new ApiError(400, "Invalid Video ID");
+    throw new ApiError(400, "Invalid Post ID");
   }
 
   const existingLike = await Like.findOneAndDelete({
@@ -34,68 +35,175 @@ const togglePostLike = asyncHandler(async (req, res) => {
 });
 
 const getUserLikedPosts = asyncHandler(async (req, res) => {
-  const userLikedPosts = await Like.aggregate([
+  const { page = 1, limit = 9 } = req.query;
+
+  // get the following list of logged in user
+  const userFollowingList = (
+    await Follow.find({
+      follower: req.user?._id,
+    }).select("profile")
+  ).map((user) => user.profile);
+
+  const options = {
+    page: parseInt(page),
+    limit: parseInt(limit),
+  };
+
+  const aggregationPipeline = Like.aggregate([
     {
       $match: {
         likedBy: req.user?._id,
       },
     },
-
     {
       $lookup: {
         from: "posts",
         foreignField: "_id",
         localField: "post",
-        as: "post",
+        as: "posts",
         pipeline: [
           {
+            $match: {
+              status: "pending",
+            },
+          },
+          {
             $lookup: {
-              // populate the profile information the owner of the post
-              from: "profiles",
-              foreignField: "user",
+              // populate the profile information of the owner of the post
+              from: "users",
+              foreignField: "_id",
               localField: "owner",
               as: "owner",
               pipeline: [
                 {
                   // get the posts of the user that role is active not suspended
                   $match: {
-                    status: "active",
+                    isActive: true,
+                  },
+                },
+                {
+                  $project: {
+                    fullname: 1,
+                    username: 1,
+                    profilePhoto: 1,
                   },
                 },
               ],
             },
           },
+          {
+            $addFields: {
+              owner: {
+                $arrayElemAt: ["$owner", 0], // Extract the first element from the owner array
+              },
+            },
+          },
+          {
+            $lookup: {
+              from: "likes",
+              foreignField: "post",
+              localField: "_id",
+              as: "likes",
+            },
+          },
+          {
+            $lookup: {
+              from: "saveds",
+              foreignField: "post",
+              localField: "_id",
+              as: "postSaveds",
+            },
+          },
+          {
+            $addFields: {
+              likesCount: {
+                $size: "$likes",
+              },
+              isSaved: {
+                $cond: {
+                  if: { $in: [req.user?._id, "$postSaveds.user"] },
+                  then: true,
+                  else: false,
+                },
+              },
+              isLiked: {
+                $cond: {
+                  if: { $in: [req.user?._id, "$likes.likedBy"] },
+                  then: true,
+                  else: false,
+                },
+              },
+              isFollowing: {
+                $cond: {
+                  if: { $in: ["$owner._id", userFollowingList] },
+                  then: true,
+                  else: false,
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              likes: 0,
+              postSaveds: 0,
+            },
+          },
         ],
-      },
-    },
-    {
-      // return an array of liked videos
-      $project: {
-        likedBy: 0,
       },
     },
   ]);
 
-  if (!userLikedPosts) {
-    throw new ApiError(500, "Failed to fetch the user liked posts");
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, userLikedPosts[0], "User liked posts fetched successfully"));
+  Like.aggregatePaginate(aggregationPipeline, options)
+    .then((results) => {
+      const posts = results.docs.map((doc) => doc.posts).flat();
+      const response = {
+        ...results,
+        docs: posts,
+      };
+      return res
+        .status(200)
+        .json(new ApiResponse(200, response, "User liked posts fetched successfully"));
+    })
+    .catch((err) => {
+      throw new ApiError(500, err?.message || "Failed to fetch the user liked posts");
+    });
 });
 
 const getPostLikes = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, query } = req.query;
   const { postId } = req.params;
 
   if (!postId || !isValidObjectId(postId)) {
     throw new ApiError(400, "Invalid Post ID provided");
   }
 
-  const postLikedBy = await Like.aggregate([
+  const options = {
+    page: parseInt(page),
+    limit: parseInt(limit),
+  };
+
+  // Initialize searchQuery
+  let searchQuery = [];
+
+  // Add additional query parameters if provided
+  if (query) {
+    searchQuery.push(
+      // Match documents where either username or fullname partially matches the query
+      {
+        $match: {
+          $or: [
+            { username: { $regex: query, $options: "i" } },
+            { fullname: { $regex: query, $options: "i" } },
+          ],
+        },
+      }
+    );
+  }
+
+  const aggregationPipeline = Like.aggregate([
     {
       $match: {
-        post: new mongoose.Schema.ObjectId(postId),
+        post: new mongoose.Types.ObjectId(postId),
       },
     },
     {
@@ -106,9 +214,15 @@ const getPostLikes = asyncHandler(async (req, res) => {
         as: "likedBy",
         pipeline: [
           {
+            $match: {
+              isActive: true,
+            },
+          },
+          // Include searchQuery pipeline only if it's not an empty object
+          ...(Object.keys(searchQuery).length !== 0 ? searchQuery : []),
+          {
             $project: {
-              _id: 1,
-              displayName: 1,
+              fullname: 1,
               username: 1,
               profilePhoto: 1,
             },
@@ -118,13 +232,20 @@ const getPostLikes = asyncHandler(async (req, res) => {
     },
   ]);
 
-  if (!postLikedBy) {
-    throw new ApiError(500, "Failed to get likes for this post.");
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, postLikedBy[0], "Post Likes fetched successfully"));
+  Like.aggregatePaginate(aggregationPipeline, options)
+    .then((results) => {
+      const likedBy = results.docs.map((doc) => doc.likedBy).flat();
+      const response = {
+        ...results,
+        docs: likedBy,
+      };
+      return res
+        .status(200)
+        .json(new ApiResponse(200, response, "Post Likes fetched successfully"));
+    })
+    .catch((err) => {
+      throw new ApiError(500, err?.message || "Failed to get likes for this post.");
+    });
 });
 
 export { togglePostLike, getUserLikedPosts, getPostLikes };
