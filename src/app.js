@@ -39,6 +39,9 @@ import subscriptionRouter from "./routes/subscription.route.js";
 import stripeRouter from "./routes/stripe.route.js";
 import voteRouter from "./routes/vote.route.js";
 import followRouter from "./routes/follow.route.js";
+import postRouter from "./routes/post.route.js";
+import savedRouter from "./routes/saved.route.js";
+import likeRouter from "./routes/like.route.js";
 
 // Routes declaration
 app.use("/api/v1/users", userRouter);
@@ -47,6 +50,9 @@ app.use("/api/v1/healthchecks", healthCheckRouter);
 app.use("/api/v1/subscriptions", subscriptionRouter);
 app.use("/api/v1/votes", voteRouter);
 app.use("/api/v1/follows", followRouter);
+app.use("/api/v1/posts", postRouter);
+app.use("/api/v1/saveds", savedRouter);
+app.use("/api/v1/likes", likeRouter);
 app.use("/webhook", stripeRouter);
 
 export { app, stripe };
