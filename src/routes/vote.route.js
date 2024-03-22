@@ -4,7 +4,9 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.route("/toggle/:contestantId").post(verifyJWT, toggleContestantVote);
+router.use(verifyJWT);
+
+router.route("/toggle/:contestantId").post(toggleContestantVote);
 router.route("/:contestantId").get(getContestantVotersList);
 
 export default router;
