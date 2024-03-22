@@ -69,12 +69,29 @@ const getContestantVotersList = asyncHandler(async (req, res) => {
     },
   };
 
+  let searchQuery = [];
+
   // Add additional query parameters if provided
   if (query) {
-    match.$match.$or = [
-      { username: { $regex: query, $options: "i" } },
-      { displayName: { $regex: query, $options: "i" } },
-    ];
+    searchQuery.push(
+      { $unwind: "$voters" },
+      // Match documents where either username or fullname partially matches the query
+      {
+        $match: {
+          $or: [
+            { "voters.username": { $regex: query, $options: "i" } },
+            { "voters.fullname": { $regex: query, $options: "i" } },
+          ],
+        },
+      },
+      // Group back to restore the original structure and push matched followers into an array
+      {
+        $group: {
+          _id: "$_id",
+          voters: { $push: "$voters" },
+        },
+      }
+    );
   }
 
   const aggregationPipeline = Vote.aggregate([
@@ -96,6 +113,7 @@ const getContestantVotersList = asyncHandler(async (req, res) => {
         ],
       },
     },
+    ...(Object.keys(searchQuery).length !== 0 ? searchQuery : []),
     {
       $project: {
         _id: 0,
