@@ -60,12 +60,30 @@ const getFollowersList = asyncHandler(async (req, res) => {
     },
   };
 
+  // Initialize searchQuery
+  let searchQuery = [];
+
   // Add additional query parameters if provided
   if (query) {
-    match.$match.$or = [
-      { username: { $regex: query, $options: "i" } },
-      { displayName: { $regex: query, $options: "i" } },
-    ];
+    searchQuery.push(
+      { $unwind: "$followers" },
+      // Match documents where either username or fullname partially matches the query
+      {
+        $match: {
+          $or: [
+            { "followers.username": { $regex: query, $options: "i" } },
+            { "followers.fullname": { $regex: query, $options: "i" } },
+          ],
+        },
+      },
+      // Group back to restore the original structure and push matched followers into an array
+      {
+        $group: {
+          _id: "$_id",
+          followers: { $push: "$followers" },
+        },
+      }
+    );
   }
 
   const aggregationPipeline = Follow.aggregate([
@@ -87,6 +105,8 @@ const getFollowersList = asyncHandler(async (req, res) => {
         ],
       },
     },
+    // Include searchQuery pipeline only if it's not an empty object
+    ...(Object.keys(searchQuery).length !== 0 ? searchQuery : []),
     {
       $project: {
         _id: 0,
@@ -133,12 +153,30 @@ const getFollowingList = asyncHandler(async (req, res) => {
     },
   };
 
+  // Initialize searchQuery
+  let searchQuery = [];
+
   // Add additional query parameters if provided
   if (query) {
-    match.$match.$or = [
-      { username: { $regex: query, $options: "i" } },
-      { displayName: { $regex: query, $options: "i" } },
-    ];
+    searchQuery.push(
+      { $unwind: "$following" },
+      // Match documents where either username or fullname partially matches the query
+      {
+        $match: {
+          $or: [
+            { "following.username": { $regex: query, $options: "i" } },
+            { "following.fullname": { $regex: query, $options: "i" } },
+          ],
+        },
+      },
+      // Group back to restore the original structure and push matched followers into an array
+      {
+        $group: {
+          _id: "$_id",
+          following: { $push: "$following" },
+        },
+      }
+    );
   }
 
   const aggregationPipeline = Follow.aggregate([
@@ -160,6 +198,8 @@ const getFollowingList = asyncHandler(async (req, res) => {
         ],
       },
     },
+    // Include searchQuery pipeline only if it's not an empty object
+    ...(Object.keys(searchQuery).length !== 0 ? searchQuery : []),
     {
       $project: {
         _id: 0,
