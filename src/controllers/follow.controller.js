@@ -1,12 +1,14 @@
-import { asyncHandler } from "../utils/asyncHandler";
-import { Follow } from "../models/follow.model";
-import { ApiError } from "../utils/ApiError";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { Follow } from "../models/follow.model.js";
+import { ApiError } from "../utils/ApiError.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import mongoose, { isValidObjectId } from "mongoose";
 
 const toggleFollow = asyncHandler(async (req, res) => {
   const { profileId } = req.params;
 
-  // Validate postId
-  if (!postId || !isValidObjectId(postId)) {
+  // Validate profileId
+  if (!profileId || !isValidObjectId(profileId)) {
     throw new ApiError(400, "Invalid Video ID");
   }
 
@@ -41,75 +43,7 @@ const getFollowersList = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query } = req.query;
   const { profileId } = req.params;
 
-  // Validate postId
-  if (!postId || !isValidObjectId(postId)) {
-    throw new ApiError(400, "Invalid profile ID");
-  }
-
-  const options = {
-    page,
-    limit,
-  };
-
-  // Construct match stage for filtering
-  const match = {
-    $match: {
-      profile: new mongoose.Schema.ObjectId(profileId),
-    },
-  };
-
-  // Add additional query parameters if provided
-  if (query) {
-    match.$match.$or = [
-      { username: { $regex: query, $options: "i" } },
-      { displayName: { $regex: query, $options: "i" } },
-    ];
-  }
-
-  const aggregationPipeline = Follow.aggregate([
-    match,
-    {
-      $lookup: {
-        from: "profiles",
-        foreignField: "_id",
-        localField: "follower",
-        as: "follower",
-      },
-    },
-    {
-      $addFields: {
-        profile: {
-          $first: "$follower",
-        },
-      },
-    },
-    {
-      $project: {
-        _id: "$follower._id",
-        fullname: "$follower.displayName",
-        username: "$follower.username",
-        profilePhoto: "$follower.profilePhoto",
-      },
-    },
-  ]);
-
-  Follow.aggregatePaginate(aggregationPipeline, options)
-    .then((results) => {
-      console.log(results);
-      return res
-        .status(200)
-        .json(new ApiResponse(200, results, "User followers fetched successfully"));
-    })
-    .catch((err) => {
-      throw new ApiError(500, err?.message || "Failed to get user followers list");
-    });
-});
-
-const getFollowingList = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, query } = req.query;
-  const { profileId } = req.params;
-
-  // Validate postId
+  // Validate profileId
   if (!profileId || !isValidObjectId(profileId)) {
     throw new ApiError(400, "Invalid profile ID");
   }
@@ -122,7 +56,7 @@ const getFollowingList = asyncHandler(async (req, res) => {
   // Construct match stage for filtering
   const match = {
     $match: {
-      follower: new mongoose.Schema.ObjectId(profileId),
+      profile: new mongoose.Types.ObjectId(profileId),
     },
   };
 
@@ -138,35 +72,113 @@ const getFollowingList = asyncHandler(async (req, res) => {
     match,
     {
       $lookup: {
-        from: "profiles",
+        from: "users",
         foreignField: "_id",
-        localField: "profile",
-        as: "following",
-      },
-    },
-    {
-      $addFields: {
-        profile: {
-          $first: "$following",
-        },
+        localField: "follower",
+        as: "followers",
+        pipeline: [
+          {
+            $project: {
+              username: 1,
+              fullname: 1,
+              profilePhoto: 1,
+            },
+          },
+        ],
       },
     },
     {
       $project: {
-        _id: "$following._id",
-        fullname: "$following.displayName",
-        username: "$following.username",
-        profilePhoto: "$following.profilePhoto",
+        _id: 0,
+        followers: 1,
       },
     },
   ]);
 
   Follow.aggregatePaginate(aggregationPipeline, options)
     .then((results) => {
-      console.log(results);
+      // Extract array of voters from the 'docs' property
+      const followers = results.docs.map((doc) => doc.followers).flat();
+      const response = {
+        ...results,
+        docs: followers,
+      };
       return res
         .status(200)
-        .json(new ApiResponse(200, results, "User following fetched successfully"));
+        .json(new ApiResponse(200, response, "User followers list fetched successfully"));
+    })
+    .catch((err) => {
+      throw new ApiError(500, err?.message || "Failed to get user followers list");
+    });
+});
+
+const getFollowingList = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, query } = req.query;
+  const { profileId } = req.params;
+
+  // Validate profileId
+  if (!profileId || !isValidObjectId(profileId)) {
+    throw new ApiError(400, "Invalid profile ID");
+  }
+
+  const options = {
+    page,
+    limit,
+  };
+
+  // Construct match stage for filtering
+  const match = {
+    $match: {
+      follower: new mongoose.Types.ObjectId(profileId),
+    },
+  };
+
+  // Add additional query parameters if provided
+  if (query) {
+    match.$match.$or = [
+      { username: { $regex: query, $options: "i" } },
+      { displayName: { $regex: query, $options: "i" } },
+    ];
+  }
+
+  const aggregationPipeline = Follow.aggregate([
+    match,
+    {
+      $lookup: {
+        from: "users",
+        foreignField: "_id",
+        localField: "profile",
+        as: "following",
+        pipeline: [
+          {
+            $project: {
+              username: 1,
+              fullname: 1,
+              profilePhoto: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        following: 1,
+      },
+    },
+  ]);
+
+  Follow.aggregatePaginate(aggregationPipeline, options)
+    .then((results) => {
+      // Extract array of voters from the 'docs' property
+      const following = results.docs.map((doc) => doc.following).flat();
+      const response = {
+        ...results,
+        docs: following,
+      };
+      return res
+        .status(200)
+        .json(new ApiResponse(200, response, "User following list fetched successfully"));
     })
     .catch((err) => {
       throw new ApiError(500, err?.message || "Failed to get user following list");
