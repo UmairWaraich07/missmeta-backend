@@ -201,6 +201,9 @@ const updatePhoneVerification = asyncHandler(async (req, res) => {
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword, confirmNewPassword } = req.body;
 
+  console.log(newPassword);
+  console.log(confirmNewPassword);
+
   if (!(newPassword === confirmNewPassword)) {
     throw new ApiError(400, "Passwords do not match");
   }
@@ -227,7 +230,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 const upgradeToContestant = asyncHandler(async (req, res) => {
   const { height, weight, eyeColor, hairColor } = req.body;
 
-  if ([height, weight, eyeColor, hairColor].some((field) => field?.trim() === "")) {
+  if ([height, weight, eyeColor, hairColor].some((field) => field === "")) {
     throw new ApiError(400, "All fields are required");
   }
 

@@ -53,13 +53,6 @@ const userSchema = new mongoose.Schema(
         return this.role === "contestant";
       },
     },
-    status: {
-      type: String,
-      index: true,
-      enum: ["active", "suspended"],
-      default: "active",
-      index: true,
-    },
 
     refreshToken: {
       type: String,
@@ -87,7 +80,8 @@ userSchema.methods.generateAccessToken = async function () {
     {
       _id: this._id,
       username: this.username,
-      email: this.email,
+      role: this.role,
+      isActive: this.isActive,
     },
     process.env.ACCESS_TOKEN_SECRET,
     {
