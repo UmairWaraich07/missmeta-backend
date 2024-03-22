@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
+import { ApiError } from "./ApiError.js";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -18,13 +19,18 @@ const uploadOnCloudinary = async (localFilePath) => {
         width: 1080,
         height: 1080,
         crop: "fill",
-        quality: "auto", // TODO: reverify to add this field as this will increase the transformations
+        // quality: "auto", // TODO: reverify to add this field as this will increase the transformations
       },
     });
 
+    if (!response) {
+      throw new ApiError(500, "Failed to upload image on cloudinary");
+    }
+
     console.log(`File uploaded on cloudinary successfully, ${response}`);
-    // TODO: remove the locally saved temporary file
     // once the file uploaded successfully delete local copy of the file
+    fs.unlinkSync(localFilePath);
+    return response;
   } catch (error) {
     fs.unlinkSync(localFilePath); // remove the locally saved temporary file
     console.log(`Failed to upload the file on cloudinary: ${error}`);

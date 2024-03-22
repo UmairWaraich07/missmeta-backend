@@ -1,7 +1,9 @@
 import mongoose, { isValidObjectId } from "mongoose";
-import { asyncHandler } from "../utils/asyncHandler";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import { Vote } from "../models/vote.model.js";
 import { ApiError } from "../utils/ApiError.js";
+import { User } from "../models/user.model.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
 
 const toggleContestantVote = asyncHandler(async (req, res) => {
   const { contestantId } = req.params;
@@ -19,7 +21,7 @@ const toggleContestantVote = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Contestant can't vote contestants");
   }
 
-  const contestant = await Vote.findById(contestantId);
+  const contestant = await User.findById(contestantId);
 
   if (contestant?.role !== "contestant") {
     throw new ApiError(400, "Contestant Id does not belong to contestant");
@@ -31,7 +33,7 @@ const toggleContestantVote = asyncHandler(async (req, res) => {
   });
 
   if (existingVote) {
-    return res.status(201).json(new ApiResponse(201, true, "Unvoted successfully"));
+    return res.status(201).json(new ApiResponse(200, true, "Unvoted successfully"));
   } else {
     // Vote to the contestant
     const newVote = await Vote.create({
@@ -63,7 +65,7 @@ const getContestantVotersList = asyncHandler(async (req, res) => {
   // Construct match stage for filtering
   const match = {
     $match: {
-      contestant: new mongoose.Schema.ObjectId(contestantId),
+      contestant: new mongoose.Types.ObjectId(contestantId),
     },
   };
 
@@ -79,34 +81,42 @@ const getContestantVotersList = asyncHandler(async (req, res) => {
     match,
     {
       $lookup: {
-        from: "profiles",
+        from: "users",
         foreignField: "_id",
         localField: "voter",
-        as: "voter",
-      },
-    },
-    {
-      $addFields: {
-        $first: "$voter",
+        as: "voters",
+        pipeline: [
+          {
+            $project: {
+              username: 1,
+              fullname: 1,
+              profilePhoto: 1,
+            },
+          },
+        ],
       },
     },
     {
       $project: {
-        _id: "$voter._id",
-        fullname: "$voter.displayName",
-        username: "$voter.username",
-        profilePhoto: "$voter.profilePhoto",
+        _id: 0,
+        voters: 1,
       },
     },
   ]);
 
   Vote.aggregatePaginate(aggregationPipeline, options)
     .then(function (results) {
-      console.log(results);
+      // Extract array of voters from the 'docs' property
+      const voters = results.docs.map((doc) => doc.voters).flat();
+      const response = {
+        ...results,
+        docs: voters,
+      };
       return res
         .status(200)
-        .json(new ApiResponse(200, results, "contestant voters fetched successfully"));
+        .json(new ApiResponse(200, response, "contestant voters fetched successfully"));
     })
+
     .catch(function (err) {
       throw new ApiError(500, err?.message || "Failed to get user contestant voters list");
     });

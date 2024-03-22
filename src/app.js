@@ -37,12 +37,14 @@ import verificationRouter from "./routes/verification.route.js";
 import healthCheckRouter from "./routes/healthcheck.route.js";
 import subscriptionRouter from "./routes/subscription.route.js";
 import stripeRouter from "./routes/stripe.route.js";
+import voteRouter from "./routes/vote.route.js";
 
 // Routes declaration
 app.use("/api/v1/users", userRouter);
-app.use("/api/v1/verification", verificationRouter);
-app.use("/api/v1/healthcheck", healthCheckRouter);
+app.use("/api/v1/verifications", verificationRouter);
+app.use("/api/v1/healthchecks", healthCheckRouter);
 app.use("/api/v1/subscriptions", subscriptionRouter);
+app.use("/api/v1/votes", voteRouter);
 app.use("/webhook", stripeRouter);
 
 export { app, stripe };

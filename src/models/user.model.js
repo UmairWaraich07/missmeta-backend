@@ -1,6 +1,22 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
+
+const highlightsSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+  },
+  cover: {
+    type: String,
+    required: true,
+  },
+  media: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Post",
+  },
+});
 
 const userSchema = new mongoose.Schema(
   {
@@ -54,6 +70,47 @@ const userSchema = new mongoose.Schema(
       },
     },
 
+    profilePhoto: {
+      url: {
+        type: String,
+      },
+
+      public_id: {
+        type: String,
+      },
+    },
+    bio: String,
+    website: String,
+    highlights: [highlightsSchema],
+    instagramLink: {
+      type: String,
+    },
+    facebookLink: {
+      type: String,
+    },
+    tiktokLink: {
+      type: String,
+    },
+    youtubeLink: {
+      type: String,
+    },
+    spotifyLink: {
+      type: String,
+    },
+    primaryAdvertisement: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Advertisement",
+    },
+    secondaryAdvertisement: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Advertisement",
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+
     refreshToken: {
       type: String,
     },
@@ -80,6 +137,7 @@ userSchema.methods.generateAccessToken = async function () {
     {
       _id: this._id,
       username: this.username,
+      fullname: this.fullname,
       role: this.role,
       isActive: this.isActive,
     },
@@ -101,5 +159,7 @@ userSchema.methods.generateRefreshToken = async function () {
     }
   );
 };
+
+userSchema.plugin(mongooseAggregatePaginate);
 
 export const User = mongoose.model("User", userSchema);

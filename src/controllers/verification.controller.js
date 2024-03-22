@@ -38,7 +38,7 @@ const verifyOtp = asyncHandler(async (req, res) => {
     to: "+923116035107",
     code: otpCode,
   });
-  // console.log(verificationCheck);
+  console.log(verificationCheck);
 
   if (!verificationCheck) {
     throw new ApiError(500, "Failed to verify the otp");
