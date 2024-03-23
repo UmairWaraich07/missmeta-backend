@@ -452,21 +452,30 @@ const getUserProfileInfo = asyncHandler(async (req, res) => {
 });
 
 const getAllContestants = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 21 } = req.query;
+  const { page = 1, limit = 21, query } = req.query;
 
   const options = {
     page: parseInt(page),
     limit: parseInt(limit),
   };
 
+  const match = {
+    role: "contestant",
+    isActive: true,
+  };
+
+  if (query) {
+    match.$or = [
+      { fullname: { $regex: query, $options: "i" } },
+      { username: { $regex: query, $options: "i" } },
+    ];
+  }
+
   const aggregationPipeline = User.aggregate([
     // Shuffle the data randomly
     { $sample: { size: options.limit * options.page } },
     {
-      $match: {
-        role: "contestant",
-        isActive: true,
-      },
+      $match: match,
     },
     {
       $lookup: {
