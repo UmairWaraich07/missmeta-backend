@@ -46,6 +46,10 @@ import savedRouter from "./routes/saved.route.js";
 import likeRouter from "./routes/like.route.js";
 import highlightRouter from "./routes/highlight.route.js";
 
+/** Admin */
+import adminRouter from "./routes/admin.route.js";
+import dashboardRouter from "./routes/dashboard.route.js";
+
 // Routes declaration
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/verifications", verificationRouter);
@@ -57,6 +61,10 @@ app.use("/api/v1/posts", postRouter);
 app.use("/api/v1/saveds", savedRouter);
 app.use("/api/v1/likes", likeRouter);
 app.use("/api/v1/highlights", highlightRouter);
+
+app.use("/api/v1/admins", adminRouter);
+app.use("/api/v1/dashboards", dashboardRouter);
+
 app.use("/webhook", stripeRouter);
 
 export { app, stripe };
