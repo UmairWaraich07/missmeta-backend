@@ -1,6 +1,27 @@
-import { asyncHandler } from "../utils/asyncHandler.js";
+import { asyncHandler } from "../../utils/asyncHandler.js";
 import { Admin } from "../../models/admin.model.js";
 import { ApiError } from "../../utils/ApiError.js";
+import { ApiResponse } from "../../utils/ApiResponse.js";
+
+const generateAccessAndRefreshTokens = async (userId) => {
+  try {
+    const admin = await Admin.findById(userId);
+    const accessToken = await admin.generateAccessToken();
+    const refreshToken = await admin.generateRefreshToken();
+
+    admin.refreshToken = refreshToken;
+    await admin.save({
+      validateBeforeSave: false,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+    };
+  } catch (error) {
+    throw new ApiError(500, "Something went wrong while generating access and refresh tokens!");
+  }
+};
 
 const initializeAdmin = asyncHandler(async (req, res) => {
   const existingAdmins = await Admin.find({});
@@ -12,12 +33,12 @@ const initializeAdmin = asyncHandler(async (req, res) => {
   // Create two admin users if they don't exist
   const admin1 = await Admin.create({
     username: "admin1",
-    password: "admin1",
+    password: "admin123$",
   });
 
-  const admin2 = new User({
+  const admin2 = await Admin.create({
     username: "admin2",
-    password: "admin2",
+    password: "admin123$",
   });
 
   if (!admin1 || !admin2) {

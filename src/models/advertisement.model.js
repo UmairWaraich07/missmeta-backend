@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Schema } from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 const advertisementSchema = new mongoose.Schema(
@@ -42,18 +42,20 @@ const advertisementSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-    hyperlink: {
+    hyperLink: {
       type: String,
       required: true,
     },
     isActive: {
       type: Boolean,
       default: false,
+      index: true,
     },
+    durationInSeconds: { type: Number, required: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "Admin", required: true },
     contestant: {
       type: Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: "User",
       required: function () {
         return this.role === "individual";
       },
@@ -63,13 +65,6 @@ const advertisementSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-advertisementSchema.virtual("durationInSeconds").get(function () {
-  const startTime = new Date(this.startDate).getTime() + new Date(this.startTime).getTime();
-  const endTime = new Date(this.endDate).getTime() + new Date(this.endTime).getTime();
-  const duration = endTime - startTime;
-  return Math.floor(duration / 1000); // Convert milliseconds to seconds and return
-});
 
 advertisementSchema.plugin(mongooseAggregatePaginate);
 
