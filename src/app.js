@@ -12,8 +12,22 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN,
+    ethods: "*",
+    // allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
+
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "https://frontend-missmeta.vercel.app");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
+  );
+  next();
+});
 
 app.use(
   express.json({
