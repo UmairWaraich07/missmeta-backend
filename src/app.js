@@ -11,7 +11,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN, //TODO: change the cors origin to your own domain
+    origin: process.env.CORS_ORIGIN,
     credentials: true,
   })
 );
@@ -42,17 +42,19 @@ import followRouter from "./routes/follow.route.js";
 import postRouter from "./routes/post.route.js";
 import savedRouter from "./routes/saved.route.js";
 import likeRouter from "./routes/like.route.js";
+import highlightRouter from "./routes/highlight.route.js";
 
 // Routes declaration
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/verifications", verificationRouter);
-app.use("/api/v1/healthchecks", healthCheckRouter);
+app.use("/api/v1/healthcheck", healthCheckRouter);
 app.use("/api/v1/subscriptions", subscriptionRouter);
 app.use("/api/v1/votes", voteRouter);
 app.use("/api/v1/follows", followRouter);
 app.use("/api/v1/posts", postRouter);
 app.use("/api/v1/saveds", savedRouter);
 app.use("/api/v1/likes", likeRouter);
+app.use("/api/v1/highlights", highlightRouter);
 app.use("/webhook", stripeRouter);
 
 export { app, stripe };
