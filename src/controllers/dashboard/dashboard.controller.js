@@ -307,6 +307,7 @@ const toggleActiveContestant = asyncHandler(async (req, res) => {
   }
 });
 
+// TODO: delete all the images uploaded from that user
 const deleteAContestant = asyncHandler(async (req, res) => {
   const { contestantId } = req.params;
 
