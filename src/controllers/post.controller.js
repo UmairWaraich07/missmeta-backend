@@ -1,9 +1,14 @@
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import {
+  deleteImageFromCloudinary,
+  deleteVideosFromCloudinary,
+  uploadOnCloudinary,
+} from "../utils/cloudinary.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Post } from "../models/post.model.js";
 import { User } from "../models/user.model.js";
 import { Follow } from "../models/follow.model.js";
 import { Saved } from "../models/saved.model.js";
+import { Like } from "../models/like.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import mongoose, { isValidObjectId } from "mongoose";
@@ -100,8 +105,25 @@ const deletePost = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Failed to delete this video");
   }
 
-  // after deletion of videoFile delete the video and images associated with that post from cloudinary
-  //TODO:
+  // get the array of users posts and videos
+  const media = response.media;
+
+  const limit = pLimit(3);
+  const filesToRemove = media.map((file) => {
+    return limit(async () => {
+      if (file.type === "image") {
+        const response = await deleteImageFromCloudinary(file.public_id);
+        console.log(`Image deleted from cloudinary, ${response}`);
+        return response;
+      } else {
+        const response = await deleteVideosFromCloudinary(file.public_id);
+        console.log(`Video deleted fro cloudinary, ${response}`);
+        return response;
+      }
+    });
+  });
+
+  await Promise.all(filesToRemove);
 
   // Delete likes associated with the post
   await Like.deleteMany({ post: postId });

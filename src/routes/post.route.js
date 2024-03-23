@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createPost,
+  deletePost,
   editPost,
   getGuestFeedPosts,
   getPostById,
@@ -13,6 +14,7 @@ const router = Router();
 
 router.route("/create").post(verifyJWT, upload.array("media", 3), createPost);
 router.route("/edit/:postId").patch(verifyJWT, editPost);
+router.route("/delete/:postId").post(verifyJWT, deletePost);
 router.route("/p/:postId").get(verifyJWT, getPostById);
 router.route("/feed-posts").get(verifyJWT, getUserFeedPosts);
 router.route("/feed-posts").get(verifyJWT, getUserFeedPosts);
