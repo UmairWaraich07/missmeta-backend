@@ -8,7 +8,7 @@
       "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       "headers": {
         "Access-Control-Allow-Origin": "https://frontend-missmeta.vercel.app",
-        "Access-Control-Allow-Credentials": true
+        "Access-Control-Allow-Credentials": "true"
       }
     }
   ]
