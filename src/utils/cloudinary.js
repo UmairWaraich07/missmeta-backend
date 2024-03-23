@@ -40,7 +40,8 @@ const uploadOnCloudinary = async (localFilePath) => {
 const deleteImageFromCloudinary = async (publicId) => {
   try {
     if (!publicId) {
-      throw new ApiError(400, "PublicId is required to delete file from cloudinary");
+      console.log("No public Id to delete image from cloudinary");
+      return;
     }
     const response = await cloudinary.uploader.destroy(publicId, {
       resource_type: "image",
@@ -74,4 +75,26 @@ const deleteVideosFromCloudinary = async (publicIds) => {
   }
 };
 
-export { uploadOnCloudinary, deleteVideosFromCloudinary, deleteImageFromCloudinary };
+const deleteResourcesFromCloudinary = async (pubicIds, resource_type) => {
+  try {
+    if (!pubicIds || pubicIds.length === 0) {
+      console.log("No resources to delete");
+      return;
+    }
+    const response = await cloudinary.api
+      .delete_resources(pubicIds, {
+        resource_type: resource_type,
+      })
+      .then((result) => console.log("Resources deleted", result));
+    return response;
+  } catch (error) {
+    console.log(`Failed to delete resources from cloudinary: ${error}`);
+  }
+};
+
+export {
+  uploadOnCloudinary,
+  deleteVideosFromCloudinary,
+  deleteImageFromCloudinary,
+  deleteResourcesFromCloudinary,
+};
