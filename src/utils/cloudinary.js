@@ -15,12 +15,12 @@ const uploadOnCloudinary = async (localFilePath) => {
     // upload the file on cloudinary
     const response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: "auto",
-      transformation: {
-        width: 1080,
-        height: 1080,
-        crop: "fill",
-        // quality: "auto", // TODO: reverify to add this field as this will increase the transformations
-      },
+      // transformation: {
+      //   width: 1080,
+      //   height: 1080,
+      //   crop: "fill",
+      //   // quality: "auto", // TODO: reverify to add this field as this will increase the transformations
+      // },
     });
 
     if (!response) {
@@ -43,6 +43,7 @@ const deleteImageFromCloudinary = async (publicId) => {
       throw new ApiError(400, "PublicId is required to delete file from cloudinary");
     }
     const response = await cloudinary.uploader.destroy(publicId, {
+      resource_type: "image",
       invalidate: true,
     });
 
@@ -54,12 +55,12 @@ const deleteImageFromCloudinary = async (publicId) => {
   }
 };
 
-const deleteVideosFromCloudinary = async (publicId) => {
+const deleteVideosFromCloudinary = async (publicIds) => {
   try {
-    if (!publicId) {
+    if (!publicIds || publicIds.length === 0) {
       throw new ApiError(400, "PublicId is required to delete file from cloudinary");
     }
-    const response = await cloudinary.api.delete_resources([publicId], {
+    const response = await cloudinary.api.delete_resources([publicIds], {
       type: "upload",
       resource_type: "video",
       invalidate: true,
