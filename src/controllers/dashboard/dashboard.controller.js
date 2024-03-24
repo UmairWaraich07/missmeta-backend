@@ -223,6 +223,62 @@ const getAdvertisements = asyncHandler(async (req, res) => {
     });
 });
 
+const deleteAdvertisement = asyncHandler(async (req, res) => {
+  const { advertisementId } = req.params;
+
+  // Validations
+  if (!advertisementId || !isValidObjectId(advertisementId)) {
+    throw new ApiError(400, "Invalid advertisementId ID");
+  }
+
+  const advertisement = await Advertisement.findById(advertisementId);
+  // Handle deletion of primary and secondary advertisements for individual type advertisements
+  if (advertisement?.type === "individual") {
+    // check the type of individual advertisement and delete it from contestant profile
+    if (advertisement.individualAdType === "primary") {
+      const response = await User.findByIdAndUpdate(advertisement.contestant, {
+        $unset: {
+          primaryAdvertisement: 1,
+        },
+      });
+      if (!response) {
+        throw new ApiError(500, "Failed to remove the primary advertisement from contestant");
+      }
+    } else if (advertisement.individualAdType === "secondary") {
+      const response = await User.findByIdAndUpdate(advertisement.contestant, {
+        $unset: {
+          secondaryAdvertisement: 1,
+        },
+      });
+      if (!response) {
+        throw new ApiError(500, "Failed to remove the secondary advertisement from contestant");
+      }
+    }
+  }
+
+  const deletedResponse = await Advertisement.findByIdAndDelete(advertisementId);
+  if (!deletedResponse) {
+    throw new ApiError(500, "Failed to delete the advertisement");
+  }
+
+  // Delete images from Cloudinary associated with the advertisement
+  const limit = pLimit(3);
+  const filesToRemove = advertisement.images.map((file) => {
+    return limit(async () => {
+      const response = await deleteImageFromCloudinary(file.public_id);
+      console.log(`Image deleted from cloudinary, ${response}`);
+      return response;
+    });
+  });
+
+  await Promise.all(filesToRemove);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, true, "Advertisement has been deleted successfully"));
+});
+
+/** contestants control from dashboard **/
 const getAllContestants = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query, filter, input } = req.query;
 
@@ -402,59 +458,148 @@ const deleteAContestant = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, true, "Contestant and associated data deleted successfully"));
 });
 
-const deleteAdvertisement = asyncHandler(async (req, res) => {
-  const { advertisementId } = req.params;
+/** image verification from admin dashboard **/
+const getAllPendingPosts = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 21 } = req.query;
 
-  // Validations
-  if (!advertisementId || !isValidObjectId(advertisementId)) {
-    throw new ApiError(400, "Invalid advertisementId ID");
+  const options = {
+    page: parseInt(page),
+    limit: parseInt(limit),
+  };
+
+  const aggregationPipeline = Post.aggregate([
+    {
+      $match: {
+        status: "pending",
+      },
+    },
+  ]);
+
+  Post.aggregatePaginate(aggregationPipeline, options)
+    .then((results) => {
+      return res
+        .status(200)
+        .json(new ApiResponse(200, results, "All pending posts fetched successfully"));
+    })
+    .catch((err) => {
+      throw new ApiError(500, err?.message || "Failed to get pending posts");
+    });
+});
+
+const getAllRejectedPosts = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 21 } = req.query;
+
+  const options = {
+    page: parseInt(page),
+    limit: parseInt(limit),
+  };
+
+  const aggregationPipeline = Post.aggregate([
+    {
+      $match: {
+        status: "rejected",
+      },
+    },
+  ]);
+
+  Post.aggregatePaginate(aggregationPipeline, options)
+    .then((results) => {
+      return res
+        .status(200)
+        .json(new ApiResponse(200, results, "All rejected posts fetched successfully"));
+    })
+    .catch((err) => {
+      throw new ApiError(500, err?.message || "Failed to get rejected posts");
+    });
+});
+
+const verifyPost = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+
+  if (!postId || !isValidObjectId(postId)) {
+    throw new ApiError(400, "Invalid post ID");
   }
 
-  const advertisement = await Advertisement.findById(advertisementId);
-  // Handle deletion of primary and secondary advertisements for individual type advertisements
-  if (advertisement?.type === "individual") {
-    // check the type of individual advertisement and delete it from contestant profile
-    if (advertisement.individualAdType === "primary") {
-      const response = await User.findByIdAndUpdate(advertisement.contestant, {
-        $unset: {
-          primaryAdvertisement: 1,
-        },
-      });
-      if (!response) {
-        throw new ApiError(500, "Failed to remove the primary advertisement from contestant");
-      }
-    } else if (advertisement.individualAdType === "secondary") {
-      const response = await User.findByIdAndUpdate(advertisement.contestant, {
-        $unset: {
-          secondaryAdvertisement: 1,
-        },
-      });
-      if (!response) {
-        throw new ApiError(500, "Failed to remove the secondary advertisement from contestant");
-      }
-    }
+  const approvedPost = await Post.findByIdAndUpdate(
+    postId,
+    {
+      $set: {
+        status: "approved",
+      },
+    },
+    { new: true }
+  );
+
+  if (!approvedPost) {
+    throw new ApiError(500, "Failed to approve this post");
   }
 
-  const deletedResponse = await Advertisement.findByIdAndDelete(advertisementId);
-  if (!deletedResponse) {
-    throw new ApiError(500, "Failed to delete the advertisement");
+  return res.status(200).json(new ApiResponse(200, approvedPost, "Post approved successfully"));
+});
+
+const rejectPost = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+
+  if (!postId || !isValidObjectId(postId)) {
+    throw new ApiError(400, "Invalid post ID");
   }
 
-  // Delete images from Cloudinary associated with the advertisement
+  const rejectedPost = await Post.findByIdAndUpdate(
+    postId,
+    {
+      $set: {
+        status: "rejected",
+      },
+    },
+    { new: true }
+  );
+
+  if (!rejectedPost) {
+    throw new ApiError(500, "Failed to reject this post");
+  }
+
+  return res.status(200).json(new ApiResponse(200, rejectedPost, "Post rejected successfully"));
+});
+
+const deletePost = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+
+  if (!postId || !isValidObjectId(postId)) {
+    throw new ApiError(400, "Invalid post ID");
+  }
+
+  const deletedPost = await Post.findByIdAndDelete(postId);
+  if (!deletedPost) {
+    throw new ApiError(500, "Failed to delete this post");
+  }
+
+  // remove the uploaded files from cloudinary concurrently
   const limit = pLimit(3);
-  const filesToRemove = advertisement.images.map((file) => {
+  const filesToRemove = deletedPost.media.map((file) => {
     return limit(async () => {
-      const response = await deleteImageFromCloudinary(file.public_id);
-      console.log(`Image deleted from cloudinary, ${response}`);
-      return response;
+      if (file.type === "image") {
+        const response = await deleteImageFromCloudinary(file.public_id);
+        console.log(`Image deleted from cloudinary, ${response}`);
+        return response;
+      } else {
+        const response = await deleteVideosFromCloudinary(file.public_id);
+        console.log(`Video deleted fro cloudinary, ${response}`);
+        return response;
+      }
     });
   });
 
   await Promise.all(filesToRemove);
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, true, "Advertisement has been deleted successfully"));
+  // Delete likes associated with the post
+  await Like.deleteMany({ post: postId });
+
+  // delete all the documents associated with then post from saved posts
+  await Saved.deleteMany({
+    post: postId,
+  });
+
+  return res.status(200).json(new ApiResponse(200, deletedPost, "Post deleted successfully"));
 });
 
 export {
@@ -466,4 +611,9 @@ export {
   deleteAdvertisement,
   getAdvertisements,
   deleteAContestant,
+  getAllPendingPosts,
+  getAllRejectedPosts,
+  verifyPost,
+  rejectPost,
+  deletePost,
 };
