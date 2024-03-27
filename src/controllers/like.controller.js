@@ -248,4 +248,21 @@ const getPostLikes = asyncHandler(async (req, res) => {
     });
 });
 
-export { togglePostLike, getUserLikedPosts, getPostLikes };
+const getPostLikesCount = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+
+  // Validate Post ID
+  if (!postId || !isValidObjectId(postId)) {
+    throw new ApiError(400, "Invalid Post ID provided");
+  }
+
+  const likesCount = await Like.countDocuments({
+    post: postId,
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, likesCount, "Post likes count fetched successfully"));
+});
+
+export { togglePostLike, getUserLikedPosts, getPostLikes, getPostLikesCount };
