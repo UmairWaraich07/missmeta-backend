@@ -4,6 +4,7 @@ import {
   deletePost,
   editPost,
   getGuestFeedPosts,
+  getMorePostsOfUser,
   getPostById,
   getUserFeedPosts,
 } from "../controllers/post.controller.js";
@@ -19,5 +20,6 @@ router.route("/p/:postId").get(verifyJWT, getPostById);
 router.route("/feed-posts").get(verifyJWT, getUserFeedPosts);
 router.route("/feed-posts").get(verifyJWT, getUserFeedPosts);
 router.route("/guest-posts").get(getGuestFeedPosts);
+router.route("/more-posts/:userId").get(getMorePostsOfUser);
 
 export default router;

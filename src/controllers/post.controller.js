@@ -38,9 +38,10 @@ const createPost = asyncHandler(async (req, res) => {
 
   const uploads = await Promise.all(imagesToUpload);
   if (!uploads.every((upload) => upload?.url)) {
-    throw new ApiError(500, "Failed to upload one or more ad images to Cloudinary");
+    throw new ApiError(500, "Failed to upload one or more images to Cloudinary");
   }
 
+  console.log(uploads);
   //   create the post
   const postImages = uploads.map((upload) => ({
     url: upload.url,
@@ -155,7 +156,7 @@ const getPostById = asyncHandler(async (req, res) => {
     {
       $match: {
         _id: new mongoose.Types.ObjectId(postId),
-        status: "pending",
+        status: "approved",
       },
     },
     {
@@ -234,6 +235,8 @@ const getPostById = asyncHandler(async (req, res) => {
     },
   ]);
 
+  console.log({ post });
+
   if (!post) {
     throw new ApiError(500, "Failed to fetch the post data");
   }
@@ -263,7 +266,7 @@ const getUserFeedPosts = asyncHandler(async (req, res) => {
         owner: {
           $in: userFollowingList,
         },
-        status: "pending",
+        status: "approved",
       },
     },
     {
@@ -370,7 +373,7 @@ const getGuestFeedPosts = asyncHandler(async (req, res) => {
   const aggregationPipeline = Post.aggregate([
     {
       $match: {
-        status: "pending",
+        status: "approved",
       },
     },
     {
@@ -431,4 +434,30 @@ const getGuestFeedPosts = asyncHandler(async (req, res) => {
     });
 });
 
-export { createPost, editPost, deletePost, getPostById, getUserFeedPosts, getGuestFeedPosts };
+const getMorePostsOfUser = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  const posts = await Post.find({
+    owner: userId,
+  })
+    .limit(10)
+    .sort({ createdAt: -1 });
+
+  if (!posts) {
+    throw new ApiError(500, "failed to fetch the more posts for this user");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, posts, "More posts of this user fetched successfully"));
+});
+
+export {
+  createPost,
+  editPost,
+  deletePost,
+  getPostById,
+  getUserFeedPosts,
+  getGuestFeedPosts,
+  getMorePostsOfUser,
+};
