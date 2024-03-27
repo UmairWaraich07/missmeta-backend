@@ -8,14 +8,15 @@ const verifySid = process.env.TWILLIO_VERIFY_SID;
 const client = new twilio(accountSid, authToken);
 
 const sendVerificationCode = asyncHandler(async (req, res) => {
-  const { phoneNumber, channel = "whatsapp" } = req.body;
+  const { phone, channel } = req.body;
+  console.log(req.body);
 
-  if (!phoneNumber) {
+  if (!phone) {
     throw new ApiError(404, "Phone number is required for verification");
   }
 
   const verification = await client.verify.v2.services(verifySid).verifications.create({
-    to: "+923116035107",
+    to: phone,
     channel: channel,
     body: "Verfication code for MissMeta is: ",
   });
@@ -32,10 +33,10 @@ const sendVerificationCode = asyncHandler(async (req, res) => {
 });
 
 const verifyOtp = asyncHandler(async (req, res) => {
-  const { otpCode } = req.body;
+  const { otpCode, phone } = req.body;
 
   const verificationCheck = await client.verify.v2.services(verifySid).verificationChecks.create({
-    to: "+923116035107",
+    to: phone,
     code: otpCode,
   });
   console.log(verificationCheck);
