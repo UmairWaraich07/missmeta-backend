@@ -15,12 +15,13 @@ const uploadOnCloudinary = async (localFilePath) => {
     // upload the file on cloudinary
     const response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: "auto",
-      // transformation: {
-      //   width: 1080,
-      //   height: 1080,
-      //   crop: "fill",
-      //   // quality: "auto", // TODO: reverify to add this field as this will increase the transformations
-      // },
+      transformation: {
+        height: 585,
+        aspect_ratio: "4:5",
+        crop: "fill",
+        // background: "black",
+        //quality: "auto", // TODO: reverify to add this field as this will increase the transformations
+      },
     });
 
     if (!response) {
