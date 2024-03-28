@@ -30,3 +30,16 @@ export const getVideoPublicIds = (posts) => {
   });
   return videoPublicIds;
 };
+
+export const shufflePosts = (posts) => {
+  // Create a copy of the array to avoid mutating the original array
+  const shuffledPosts = [...posts];
+
+  // Shuffle the array using the Fisher-Yates algorithm
+  for (let i = shuffledPosts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledPosts[i], shuffledPosts[j]] = [shuffledPosts[j], shuffledPosts[i]];
+  }
+
+  return shuffledPosts;
+};
