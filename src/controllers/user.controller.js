@@ -522,6 +522,26 @@ const getAllContestants = asyncHandler(async (req, res) => {
     });
 });
 
+/** Contestant filters controller **/
+const getContestantFilteringOptions = asyncHandler(async (req, res) => {
+  // Query distinct countries for contestants
+  try {
+    const countries = await User.distinct("country", { role: "contestant" });
+
+    // Query distinct states/provinces for contestants
+    const states = await User.distinct("state", { role: "contestant" });
+
+    // Query distinct cities for contestants
+    const cities = await User.distinct("city", { role: "contestant" });
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { countries, states, cities }, "Filters fetched successfully"));
+  } catch (error) {
+    throw new ApiError(500, error?.message || "Error fetching filtering options for contestants");
+  }
+});
+
 export {
   registerUser,
   updatePhoneVerification,
@@ -534,4 +554,5 @@ export {
   updateProfileDetails,
   getUserProfileInfo,
   getAllContestants,
+  getContestantFilteringOptions,
 };

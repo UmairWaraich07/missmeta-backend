@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   changeCurrentPassword,
   getAllContestants,
+  getContestantFilteringOptions,
   getCurrentUser,
   getUserProfileInfo,
   loginUser,
@@ -14,11 +15,6 @@ import {
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
-import {
-  createProfileHighlight,
-  deleteProfileHighlight,
-  editProfileHighlight,
-} from "../controllers/highlight.controller.js";
 
 const router = Router();
 
@@ -37,5 +33,8 @@ router
 router.route("/update-profile").patch(verifyJWT, updateProfileDetails);
 router.route("/p/:username").get(getUserProfileInfo);
 router.route("/contestants").get(getAllContestants);
+
+/** Contestant filters route */
+router.route("/contestant-filtering-options").post(getContestantFilteringOptions);
 
 export default router;
